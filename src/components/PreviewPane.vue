@@ -117,8 +117,10 @@ const props = withDefaults(
     filterId: string;
     filterMarkup: string;
     onClearEditor?: () => void;
+    /** 恢复默认时同时重置滤镜（与「恢复默认」按钮一起调用） */
+    onRestoreDefaultFilter?: () => void;
   }>(),
-  { onClearEditor: undefined }
+  { onClearEditor: undefined, onRestoreDefaultFilter: undefined }
 );
 
 const previewHtml = ref(defaultPreviewHtml);
@@ -174,6 +176,7 @@ const clearPreview = () => {
 const restoreDefault = () => {
   previewHtml.value = defaultPreviewHtml;
   selectors.value = [...defaultSelectors];
+  props.onRestoreDefaultFilter?.();
 };
 </script>
 

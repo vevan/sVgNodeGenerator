@@ -81,6 +81,9 @@ const SVG_ATTR_TO_INPUT: Record<string, string> = {
   "ychannelselector": "yChannelSelector",
   "flood-color": "flood-color",
   "flood-opacity": "flood-opacity",
+  "basefrequency": "baseFrequency",
+  "numoctaves": "numOctaves",
+  "stitchtiles": "stitchTiles",
 };
 
 function toInputKey(attrName: string): string {
@@ -191,7 +194,10 @@ export function parseFilterMarkup(filterCode: string): ParsedElement[] {
 
 /** 将 ParsedElement 的 attrs、mergeIns、funcR/G/B/A、light 映射到节点 input 的 value（用于 setValue） */
 export function parsedToInputValues(parsed: ParsedElement): Record<string, string> {
-  const values: Record<string, string> = { ...parsed.attrs };
+  const values: Record<string, string> = {};
+  for (const [k, v] of Object.entries(parsed.attrs)) {
+    if (v !== undefined && v !== "") values[toInputKey(k)] = v;
+  }
 
   if (parsed.funcR) {
     if (parsed.funcR.type) values.funcRType = parsed.funcR.type;

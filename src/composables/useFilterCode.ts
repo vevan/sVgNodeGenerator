@@ -1,4 +1,4 @@
-import { nextTick, onMounted, onUnmounted, ref } from "vue";
+import { onMounted, onUnmounted, ref } from "vue";
 
 export type UseFilterCodeOptions = {
   /** 当前由节点图生成的完整 filter 代码（只读时同步到 textarea） */
@@ -9,8 +9,6 @@ export type UseFilterCodeOptions = {
   syncInterval?: number;
   /** 保存状态的间隔 ms */
   saveInterval?: number;
-  /** 获取「编辑/只读」按钮元素，用于绑定 pointerdown 捕获（子组件挂载后可用） */
-  getEditButton?: () => HTMLButtonElement | null;
 };
 
 export function useFilterCode(options: UseFilterCodeOptions) {
@@ -19,7 +17,6 @@ export function useFilterCode(options: UseFilterCodeOptions) {
     saveState,
     syncInterval = 300,
     saveInterval = 800,
-    getEditButton,
   } = options;
 
   const isCodeReadonly = ref(true);
@@ -28,7 +25,6 @@ export function useFilterCode(options: UseFilterCodeOptions) {
 
   let syncTimer: number | undefined;
   let saveTimer: number | undefined;
-  let editToggleCleanup: (() => void) | undefined;
 
   function toggleCodeEdit() {
     isCodeReadonly.value = !isCodeReadonly.value;
@@ -64,24 +60,9 @@ export function useFilterCode(options: UseFilterCodeOptions) {
     syncTimer = window.setInterval(updateSync, syncInterval);
     saveTimer = window.setInterval(saveState, saveInterval);
     window.addEventListener("beforeunload", saveState);
-
-    nextTick(() => {
-      const el = getEditButton?.();
-      if (el) {
-        const handler = (e: Event) => {
-          e.preventDefault();
-          e.stopPropagation();
-          e.stopImmediatePropagation();
-          toggleCodeEdit();
-        };
-        el.addEventListener("pointerdown", handler, true);
-        editToggleCleanup = () => el.removeEventListener("pointerdown", handler, true);
-      }
-    });
   });
 
   onUnmounted(() => {
-    editToggleCleanup?.();
     if (syncTimer) window.clearInterval(syncTimer);
     if (saveTimer) window.clearInterval(saveTimer);
     window.removeEventListener("beforeunload", saveState);

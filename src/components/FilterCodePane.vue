@@ -27,6 +27,7 @@ defineExpose({ editToggleEl });
       type="button"
       class="filter-code-edit-toggle"
       :title="isCodeReadonly ? '点击进入编辑' : '点击恢复只读'"
+      @click.stop.prevent="$emit('toggleEdit')"
     >
       {{ isCodeReadonly ? "🔒 只读" : "✏️ 编辑" }}
     </button>
