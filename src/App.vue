@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, markRaw, onMounted, onUnmounted, ref } from "vue";
+import { computed, markRaw, nextTick, onMounted, onUnmounted, ref } from "vue";
 import {
   BaklavaEditor,
   SelectInterface,
@@ -563,19 +563,72 @@ const filterCode = computed(
   () => `<filter id="${filterId}">\n${filterMarkup.value}\n</filter>`
 );
 
+const isCodeReadonly = ref(true);
+const filterCodeText = ref("");
+const filterCodeEditToggleEl = ref<HTMLButtonElement | null>(null);
+
 let refreshTimer: number | undefined;
 let saveEditorTimer: number | undefined;
+let editToggleCleanup: (() => void) | undefined;
 onMounted(() => {
   const updatePreview = () => {
     filterMarkup.value = buildFilterMarkup();
+    if (isCodeReadonly.value) {
+      filterCodeText.value = filterCode.value;
+    }
   };
   updatePreview();
   refreshTimer = window.setInterval(updatePreview, 300);
   saveEditorTimer = window.setInterval(saveEditorState, 800);
   window.addEventListener("beforeunload", saveEditorState);
+
+  nextTick(() => {
+  const el = filterCodeEditToggleEl.value;
+  if (el) {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+      e.stopImmediatePropagation();
+      toggleCodeEdit();
+    };
+    el.addEventListener("pointerdown", handler, true);
+    editToggleCleanup = () => {
+      el.removeEventListener("pointerdown", handler, true);
+    };
+  }
+  });
 });
 
+function toggleCodeEdit() {
+  isCodeReadonly.value = !isCodeReadonly.value;
+  if (!isCodeReadonly.value) {
+    filterCodeText.value = filterCode.value;
+  }
+}
+
+function applyCodeToGraph() {
+  // 占位：后续实现从 filterCodeText 解析并反向生成节点图
+  const raw = filterCodeText.value.trim();
+  if (!raw) return;
+  console.warn("[svgfilter] 应用代码到节点图：功能待实现", raw.slice(0, 80));
+  alert("即将支持：从滤镜代码反向生成节点图，敬请期待。");
+}
+
+async function copyCode() {
+  const text = filterCodeText.value.trim() || filterCode.value;
+  if (!text) return;
+  try {
+    await navigator.clipboard.writeText(text);
+    copyCodeFeedback.value = true;
+    setTimeout(() => (copyCodeFeedback.value = false), 1500);
+  } catch {
+    alert("复制失败，请手动选择代码复制。");
+  }
+}
+const copyCodeFeedback = ref(false);
+
 onUnmounted(() => {
+  editToggleCleanup?.();
   if (refreshTimer) {
     window.clearInterval(refreshTimer);
   }
@@ -612,8 +665,17 @@ onUnmounted(() => {
         :filter-markup="filterMarkup"
         :on-clear-editor="clearEditorGraph"
       />
-      <div class="pane-title">滤镜代码</div>
-      <pre class="filter-code">{{ filterCode }}</pre>
+      <div class="pane-title filter-code-header">
+        <span>滤镜代码</span>
+        <button ref="filterCodeEditToggleEl" type="button" class="filter-code-edit-toggle" :title="isCodeReadonly ? '点击进入编辑' : '点击恢复只读'">
+          {{ isCodeReadonly ? "🔒 只读" : "✏️ 编辑" }}
+        </button>
+        <button type="button" class="filter-code-copy" :class="{ 'copy-done': copyCodeFeedback }" @click="copyCode">
+          {{ copyCodeFeedback ? "已复制" : "复制代码" }}
+        </button>
+        <button v-if="!isCodeReadonly" type="button" class="filter-code-apply" @click="applyCodeToGraph">应用代码</button>
+      </div>
+      <textarea v-model="filterCodeText" :readonly="isCodeReadonly" class="filter-code" spellcheck="false"></textarea>
     </section>
   </div>
 </template>

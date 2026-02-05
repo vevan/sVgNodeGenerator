@@ -90,6 +90,51 @@ body,
   color: #9bb0c7;
 }
 
+.filter-code-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: relative;
+  z-index: 2;
+}
+.filter-code-header .filter-code-edit-toggle {
+  font-weight: normal;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 10px;
+  background: transparent;
+  color: #9bb0c7;
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.filter-code-header .filter-code-edit-toggle:hover {
+  background: #2b3139;
+  color: #cdd6e3;
+  border-color: #3d4652;
+}
+.filter-code-header .filter-code-copy,
+.filter-code-header .filter-code-apply {
+  padding: 4px 10px;
+  font-size: 12px;
+  background: #2b3139;
+  color: #cdd6e3;
+  border: 1px solid #3d4652;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.filter-code-header .filter-code-copy:hover,
+.filter-code-header .filter-code-apply:hover {
+  background: #3d4652;
+}
+.filter-code-header .filter-code-copy.copy-done {
+  color: #7bc275;
+}
+.filter-code-header .filter-code-apply {
+  margin-left: auto;
+}
+textarea.filter-code,
 .filter-code {
   flex: 1;
   margin: 0;
@@ -101,6 +146,16 @@ body,
   font-size: 12px;
   line-height: 1.5;
   white-space: pre-wrap;
+  font-family: inherit;
+}
+textarea.filter-code {
+  resize: vertical;
+  min-height: 120px;
+  border: none;
+  border-top: 1px solid #2b3139;
+  outline: none;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 

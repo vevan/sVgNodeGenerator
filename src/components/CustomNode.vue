@@ -110,7 +110,6 @@ const styles = computed(() => ({
 
 const NodeInterface = Components.NodeInterface;
 const ContextMenu = Components.ContextMenu;
-const ToolbarButton = Components.ToolbarButton;
 </script>
 
 <template>
@@ -130,7 +129,7 @@ const ToolbarButton = Components.ToolbarButton;
       <template v-if="!renaming">
         <div class="__title-label">{{ node.title }}</div>
         <div class="__menu">
-          <ToolbarButton class="--clickable" @click="openContextMenu">⋮</ToolbarButton>
+          <button type="button" class="baklava-toolbar-entry baklava-toolbar-button --clickable" title="菜单" @click.stop.prevent="openContextMenu">⋮</button>
           <ContextMenu
             :model-value="showContextMenu"
             :items="contextMenuItems"
