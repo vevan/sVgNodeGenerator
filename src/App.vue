@@ -34,6 +34,12 @@ import feSpecularLighting from "./nodes/feSpecularLighting";
 import feTile from "./nodes/feTile";
 import feTurbulence from "./nodes/feTurbulence";
 import type { FeNodeFactory } from "./nodes/types";
+import { addDynamicInput } from "./nodes/dynamicInputs";
+import {
+  parseFilterMarkup,
+  parsedToInputValues,
+  type ParsedElement,
+} from "./parseFilterMarkup";
 
 const baklava = useBaklava();
 
@@ -228,8 +234,8 @@ const nodeTypes = nodeDefinitions.map((definition) => defineFeNode(definition)) 
 
 nodeTypes.forEach((nodeType: any) => baklava.editor.registerNodeType(nodeType));
 
-const getNodeCtor = (type: string) =>
-  nodeTypes.find((nodeType: any) => nodeType.type === type);
+/** 从 editor 已注册类型取构造函数（实例才有 .type，类本身没有） */
+const getNodeCtor = (type: string) => baklava.editor.nodeTypes.get(type)?.type;
 
 const EDITOR_STORAGE_KEY = "svgfilter-editor";
 
@@ -606,12 +612,152 @@ function toggleCodeEdit() {
   }
 }
 
+const PARSED_TAG_TO_NODE_TYPE: Record<string, string> = {
+  feblend: "feBlend",
+  fecolormatrix: "feColorMatrix",
+  fecomponenttransfer: "feComponentTransfer",
+  fecomposite: "feComposite",
+  feconvolvematrix: "feConvolveMatrix",
+  fediffuselighting: "feDiffuseLighting",
+  fedisplacementmap: "feDisplacementMap",
+  fedropshadow: "feDropShadow",
+  feflood: "feFlood",
+  fegaussianblur: "feGaussianBlur",
+  feimage: "feImage",
+  femerge: "feMerge",
+  femorphology: "feMorphology",
+  feoffset: "feOffset",
+  fespecularlighting: "feSpecularLighting",
+  fetile: "feTile",
+  feturbulence: "feTurbulence",
+};
+
+function parsedTagToNodeType(tag: string): string {
+  const lower = tag.toLowerCase();
+  return PARSED_TAG_TO_NODE_TYPE[lower] ?? "fe" + tag.slice(2, 3).toUpperCase() + tag.slice(3).toLowerCase();
+}
+
+function setNodeInputValue(node: AnyNode, key: string, value: string) {
+  const input = node.inputs?.[key];
+  if (input && typeof input.value !== "undefined") {
+    input.value = value;
+  }
+}
+
 function applyCodeToGraph() {
-  // 占位：后续实现从 filterCodeText 解析并反向生成节点图
   const raw = filterCodeText.value.trim();
   if (!raw) return;
-  console.warn("[svgfilter] 应用代码到节点图：功能待实现", raw.slice(0, 80));
-  alert("即将支持：从滤镜代码反向生成节点图，敬请期待。");
+
+  let parsed: ParsedElement[];
+  try {
+    parsed = parseFilterMarkup(raw);
+  } catch (e) {
+    console.error("[svgfilter] 解析 filter 代码失败", e);
+    alert("解析失败，请检查是否为合法的 SVG filter 代码。");
+    return;
+  }
+
+  if (parsed.length === 0) {
+    alert("未解析到有效的 fe* 元素，请检查代码。");
+    return;
+  }
+
+  const graph = baklava.editor.graph;
+  clearEditorGraph();
+
+  const resultToNode = new Map<string, AnyNode>();
+  const nodesByIndex: AnyNode[] = [];
+  const LAYOUT_DX = 240;
+
+  for (let i = 0; i < parsed.length; i++) {
+    const p = parsed[i]!;
+    const type = parsedTagToNodeType(p.tag);
+    const Ctor = getNodeCtor(type);
+    if (!Ctor) {
+      console.warn("[svgfilter] 不支持的节点类型:", type);
+      continue;
+    }
+
+    const node = new Ctor() as AnyNode;
+    node.position = { x: i * LAYOUT_DX, y: 0 };
+
+    const inputValues = parsedToInputValues(p);
+    for (const [key, value] of Object.entries(inputValues)) {
+      if (value === "") continue;
+      setNodeInputValue(node, key, value);
+    }
+
+    if (p.tag === "femerge" && p.mergeIns && p.mergeIns.length > 0) {
+      for (let k = 3; k <= p.mergeIns.length; k++) {
+        addDynamicInput(node, k);
+      }
+    }
+
+    if (p.in !== undefined && p.in !== "") {
+      setNodeInputValue(node, "in", p.in);
+    }
+    if (p.in2 !== undefined && p.in2 !== "") {
+      setNodeInputValue(node, "in2", p.in2);
+    }
+    if (p.tag === "femerge" && p.mergeIns) {
+      const keys = Object.keys(node.inputs || {})
+        .filter((key) => /^in\d+$/.test(key))
+        .sort((a, b) => Number(a.slice(2)) - Number(b.slice(2)));
+      p.mergeIns.forEach((inVal, idx) => {
+        if (keys[idx]) setNodeInputValue(node, keys[idx], inVal);
+      });
+    }
+
+    graph.addNode(node);
+    nodesByIndex.push(node);
+    if (p.result) {
+      resultToNode.set(p.result, node);
+    }
+  }
+
+  for (let i = 0; i < parsed.length; i++) {
+    const p = parsed[i]!;
+    const node = nodesByIndex[i];
+    if (!node) continue;
+
+    const connect = (inputKey: string, sourceResultName: string) => {
+      const fromNode = resultToNode.get(sourceResultName);
+      if (!fromNode || !fromNode.outputs?.result) return;
+      const toInput = node.inputs?.[inputKey];
+      if (!toInput) return;
+      try {
+        graph.addConnection(fromNode.outputs.result, toInput);
+      } catch {
+        /* 已连接或类型不匹配则忽略 */
+      }
+    };
+
+    const inVal = p.in;
+    if (inVal && resultToNode.has(inVal)) {
+      setNodeInputValue(node, "in", "");
+      connect("in", inVal);
+    }
+    const in2Val = p.in2;
+    if (in2Val && resultToNode.has(in2Val)) {
+      setNodeInputValue(node, "in2", "");
+      connect("in2", in2Val);
+    }
+    if (p.tag === "femerge" && p.mergeIns) {
+      const keys = Object.keys(node.inputs || {})
+        .filter((key) => /^in\d+$/.test(key))
+        .sort((a, b) => Number(a.slice(2)) - Number(b.slice(2)));
+      p.mergeIns.forEach((inVal, idx) => {
+        if (resultToNode.has(inVal) && keys[idx]) {
+          setNodeInputValue(node, keys[idx], "");
+          connect(keys[idx], inVal);
+        }
+      });
+    }
+  }
+
+  saveEditorState();
+  isCodeReadonly.value = true;
+  filterCodeText.value = filterCode.value;
 }
 
 async function copyCode() {
