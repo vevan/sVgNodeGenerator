@@ -14,7 +14,7 @@ const feMerge: FeNodeFactory = ({ textPort, textControl }) => ({
       labelPrefix: "输入",
       minCount: 1,
       initialCount: 2,
-      createInput: (index, key, label) =>
+      createInput: (index, _key, label) =>
         textPort(label, index === 1 ? "SourceGraphic" : ""),
     });
   },
@@ -24,7 +24,7 @@ const feMerge: FeNodeFactory = ({ textPort, textControl }) => ({
       labelPrefix: "输入",
       minCount: 1,
       initialCount: 2,
-      createInput: (index, key, label) =>
+      createInput: (index, _key, label) =>
         textPort(label, index === 1 ? "SourceGraphic" : ""),
     });
   },

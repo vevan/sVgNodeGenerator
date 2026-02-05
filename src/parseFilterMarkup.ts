@@ -232,8 +232,8 @@ export function parsedToInputValues(parsed: ParsedElement): Record<string, strin
 
   if (parsed.light) {
     const { tag, attrs: lightAttrs } = parsed.light;
-    const lightType =
-      tag === "fepointlight" ? "point" : tag === "fespotlight" ? "spot" : "distant";
+    const t = typeof tag === "string" ? tag.toLowerCase() : "";
+    const lightType = t === "fepointlight" ? "point" : t === "fespotlight" ? "spot" : "distant";
     values.lightType = lightType;
     Object.assign(values, lightAttrs);
   }

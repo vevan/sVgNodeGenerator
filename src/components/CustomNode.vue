@@ -54,15 +54,15 @@ const onContextMenuClick = async (action: string) => {
 };
 
 const displayedOutputs = computed(() =>
-  Object.values(props.node.outputs || {}).filter((intf: any) => !intf.hidden)
+  Object.values(props.node.outputs || {}).filter((intf: any) => !intf.hidden) as any[]
 );
 
 const displayedInputs = computed(() => {
   dynamicInputsVersion.value;
-  return Object.values(props.node.inputs || {}).filter((intf: any) => !intf.hidden);
+  return Object.values(props.node.inputs || {}).filter((intf: any) => !intf.hidden) as any[];
 });
 
-const bySection = (section: string) =>
+const bySection = (section: string): any[] =>
   displayedInputs.value.filter((intf: any) => intf.__section === section);
 
 const outputs = computed(() => displayedOutputs.value);
